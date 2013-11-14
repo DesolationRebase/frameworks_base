@@ -454,6 +454,8 @@ public interface WindowManagerPolicy {
 
         /** Unregister a system listener for touch events */
         void unregisterPointerEventListener(PointerEventListener listener);
+
+        void addSystemUIVisibilityFlag(int flags);
     }
 
     public interface PointerEventListener {
@@ -1243,6 +1245,11 @@ public interface WindowManagerPolicy {
      * Specifies whether there is an on-screen navigation bar separate from the status bar.
      */
     public boolean hasNavigationBar();
+
+    /**
+     * Navigation bar window is currently capable of being vertical
+     */
+    public boolean navigationBarCanMove();
 
     /**
      * Lock the device now.
