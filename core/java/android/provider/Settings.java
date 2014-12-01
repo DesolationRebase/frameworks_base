@@ -3409,6 +3409,12 @@ public final class Settings {
         public static final String STATUS_BAR_CARRIER_LABEL_USE_CUSTOM = "status_bar_carrier_label_use_custom";
 
         /**
+         * Show search bar in recents
+         * @hide
+         */
+        public static final String RECENTS_SHOW_SEARCH_BAR = "recents_show_search_bar";
+
+        /**
          *  Name of the custom carrier label on the status bar
          * @hide
          */
