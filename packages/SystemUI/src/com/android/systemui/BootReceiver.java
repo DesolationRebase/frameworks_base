@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 The Android Open Source Project
+ * Copyright (C) 2015 The DesolationROM Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,17 @@
 
 package com.android.systemui;
 
+import android.app.Notification;
+import android.app.Notification.Builder;
+import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.SystemProperties;
+import android.os.UserHandle;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -29,18 +36,83 @@ import android.util.Log;
  */
 public class BootReceiver extends BroadcastReceiver {
     private static final String TAG = "SystemUIBootReceiver";
+    
+    private static String WELCOME_BACK_NOTIFY = "welcome_back_notify" ;
+    private static String FIRST_BOOT_NOTIFY = "first_boot_notify" ;
+	private int mFirstBoot;
+	private int mWelcomeBack;
+	private int mShowProcess;
 
     @Override
     public void onReceive(final Context context, Intent intent) {
+	ContentResolver res = context.getContentResolver();
+	mFirstBoot = Settings.System.getIntForUser(res, Settings.System.FIRST_BOOT_NOTIFY, 0, UserHandle.USER_CURRENT);
+	mWelcomeBack = Settings.System.getInt(res, Settings.System.WELCOME_BACK_NOTIFY, 1);
+	mShowProcess = Settings.Global.getInt(res, Settings.Global.SHOW_PROCESSES, 0);
         try {
             // Start the load average overlay, if activated
-            ContentResolver res = context.getContentResolver();
-            if (Settings.Global.getInt(res, Settings.Global.SHOW_PROCESSES, 0) != 0) {
+            if (mShowProcess != 0) {
                 Intent loadavg = new Intent(context, com.android.systemui.LoadAverageService.class);
                 context.startService(loadavg);
             }
         } catch (Exception e) {
-            Log.e(TAG, "Can't start load average service", e);
+            Log.e(TAG, "Can't start load average service");
         }
+		if (mWelcomeBack != 0) {
+			switch (mFirstBoot) {
+				case 0:
+					FirstBootNotify(context);
+					Settings.System.putIntForUser(res, Settings.System.FIRST_BOOT_NOTIFY, 1, UserHandle.USER_CURRENT);
+					Log.i(TAG, "Notified for first boot");
+					break;
+				case 1:
+					WelcomeBackNotify(context);
+					Log.i(TAG, "Notified for returning boot");
+					break;
+			}
+		} else {
+			Log.i(TAG, "Welcome notifications disabled");
+		}
+    }
+
+    public void FirstBootNotify(Context context) {
+        Notification.Builder mBuilder = new Notification.Builder(context)
+	        .setSmallIcon(R.drawable.first_boot_notify)
+                .setAutoCancel(true)
+                .setContentTitle("Welcome to DesolationROM")
+                .setContentText("")
+		.setStyle(new Notification.InboxStyle()
+		.setBigContentTitle("Welcome to DesolationROM")
+		.addLine("Build status: "+SystemProperties.get("ro.deso.buildtype"))
+		.addLine("Build date: "+SystemProperties.get("ro.build.date"))
+		.addLine("Device: "+SystemProperties.get("ro.product.device")));
+		final NotificationManager mNotificationManager =
+			(NotificationManager) context.getSystemService(context.NOTIFICATION_SERVICE);
+		mNotificationManager.notify(1, mBuilder.build());
+		Handler h = new Handler();
+		long c = 12000;
+		h.postDelayed(new Runnable() {
+			public void run() {
+				mNotificationManager.cancel(1);
+			}
+		}, c);
+    }
+    
+    public void WelcomeBackNotify(Context context) {
+        Notification.Builder mBuilder = new Notification.Builder(context)
+	        .setSmallIcon(R.drawable.first_boot_notify)
+                .setAutoCancel(true)
+                .setContentTitle("Welcome back to DesolationROM")
+                .setContentText("Build status: "+SystemProperties.get("ro.deso.buildtype"));
+		final NotificationManager mNotificationManager =
+			(NotificationManager) context.getSystemService(context.NOTIFICATION_SERVICE);
+		mNotificationManager.notify(1, mBuilder.build());
+		Handler h = new Handler();
+		long c = 8000;
+		h.postDelayed(new Runnable() {
+			public void run() {
+				mNotificationManager.cancel(1);
+			}
+		}, c);
     }
 }

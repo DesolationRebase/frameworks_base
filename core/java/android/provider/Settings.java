@@ -3263,6 +3263,18 @@ public final class Settings {
         public static final String STATUS_BAR_DESO_LOGO_COLOR = "status_bar_deso_logo_color";
 
         /**
+         * Boolean value whether to enable "Welcome back" notification
+         * @hide
+         */
+        public static final String WELCOME_BACK_NOTIFY = "welcome_back_notify";
+
+        /**
+         * Boolean value whether to show first boot or welcome back notification
+         * @hide
+         */
+        public static final String FIRST_BOOT_NOTIFY = "first_boot_notify" ;
+
+        /**
          * Settings to backup. This is here so that it's in the same place as the settings
          * keys and easy to update.
          *
@@ -3314,7 +3326,8 @@ public final class Settings {
             RINGTONE,
             LOCK_TO_APP_ENABLED,
             NOTIFICATION_SOUND,
-            WIFI_AUTO_CONNECT_TYPE
+            WIFI_AUTO_CONNECT_TYPE,
+	    FIRST_BOOT_NOTIFY
         };
 
         /**
