@@ -3263,6 +3263,92 @@ public final class Settings {
         public static final String STATUS_BAR_DESO_LOGO_COLOR = "status_bar_deso_logo_color";
 
         /**
+         * Disable FC Notifications
+         * @hide
+         */
+        public static final String DISABLE_FC_NOTIFICATIONS = "disable_fc_notifications";
+
+         /**
+         * Show clock time
+         * 0 - Normal clock
+         * 1 - No clock
+         * @hide
+         */
+        public static final String STATUS_BAR_CLOCK = "status_bar_clock";
+
+         /**
+         * Shows custom date before clock time
+         * 0 - No Date
+         * 1 - Small Date
+         * 2 - Normal Date
+         * @hide
+         */
+        public static final String STATUS_BAR_DATE = "status_bar_date";
+
+        /**
+         * Sets the date string style
+         * 0 - Regular style
+         * 1 - Lowercase
+         * 2 - Uppercase
+         * @hide
+         */
+        public static final String STATUS_BAR_DATE_STYLE = "status_bar_date_style";
+
+        /**
+         * Stores the java DateFormat string for the date
+         * @hide
+         */
+        public static final String STATUS_BAR_DATE_FORMAT = "status_bar_date_format";
+
+         /**
+         * Setting for clock color
+         * @hide
+         */
+        public static final String STATUSBAR_CLOCK_COLOR = "statusbar_clock_color";
+
+        /**
+         * Display second in the Clock
+         * @hide
+         */
+        public static final String CLOCK_USE_SECOND = "clock_use_second";
+
+         /**
+         *  Enable statusbar double tap gesture on to put device to sleep
+         * @hide
+         */
+        public static final String DOUBLE_TAP_SLEEP_GESTURE = "double_tap_sleep_gesture";
+
+        /**
+         * show clear all recents button
+         *  @hide
+         */
+        public static final String SHOW_CLEAR_ALL_RECENTS = "show_clear_all_recents";
+
+        /**
+         * location of the clear all rectents button
+         * @hide
+         */
+        public static final String RECENTS_CLEAR_ALL_LOCATION = "recents_clear_all_location";
+
+        /**
+         * Whether to show or hide search bar in recents view
+         * @hide
+         */
+        public static final String RECENTS_SEARCH_BAR = "recents_search_bar";
+
+        /**
+         * Boolean value whether to enable "Welcome back" notification
+         * @hide
+         */
+        public static final String WELCOME_BACK_NOTIFY = "welcome_back_notify";
+
+        /**
+         * Boolean value whether to show first boot or welcome back notification
+         * @hide
+         */
+        public static final String FIRST_BOOT_NOTIFY = "first_boot_notify" ;
+
+        /**
          * Settings to backup. This is here so that it's in the same place as the settings
          * keys and easy to update.
          *
@@ -3314,7 +3400,8 @@ public final class Settings {
             RINGTONE,
             LOCK_TO_APP_ENABLED,
             NOTIFICATION_SOUND,
-            WIFI_AUTO_CONNECT_TYPE
+            WIFI_AUTO_CONNECT_TYPE,
+	    FIRST_BOOT_NOTIFY
         };
 
         /**
