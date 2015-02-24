@@ -33,6 +33,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.IPackageManager;
 import android.content.res.Configuration;
+import android.content.ContentResolver;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.graphics.Bitmap;
@@ -53,6 +54,7 @@ import android.media.session.MediaController;
 import android.media.session.MediaSession;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -327,6 +329,13 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
     // carrier label
     private TextView mCarrierLabel;
     private boolean mShowCarrierInPanel = false;
+
+    // Desolation logo
+    private boolean mDesoLogo;
+    private ImageView desoLogo;
+
+    // position
+    int[] mPositionTmp = new int[2];
     boolean mExpandedVisible;
 
     private int mNavigationBarWindowState = WINDOW_STATE_SHOWING;
@@ -362,6 +371,42 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
 
     private int mNavigationIconHints = 0;
     private HandlerThread mHandlerThread;
+
+    class SettingsObserver extends ContentObserver {
+        SettingsObserver(Handler handler) {
+            super(handler);
+        }
+
+        void observe() {
+            ContentResolver resolver = mContext.getContentResolver();
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.STATUS_BAR_DESO_LOGO),
+                    false, this, UserHandle.USER_ALL);
+            update();
+        }
+
+        void unobserve() {
+            ContentResolver resolver = mContext.getContentResolver();
+            resolver.unregisterContentObserver(this);
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            update();
+        }
+
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            update();
+        }
+
+        public void update() {
+            ContentResolver resolver = mContext.getContentResolver();
+            mDesoLogo = Settings.System.getIntForUser(resolver,
+                    Settings.System.STATUS_BAR_DESO_LOGO, 0, mCurrentUserId) == 1;
+            showDesoLogo(mDesoLogo);
+        }
+    }
 
     // ensure quick settings is disabled until the current user makes it through the setup wizard
     private boolean mUserSetup = false;
@@ -3065,6 +3110,16 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
         setControllerUsers();
         mAssistManager.onUserSwitched(newUserId);
     }
+
+    public void showDesoLogo(boolean show) {
+        if (mStatusBarView == null) return;
+        ContentResolver resolver = mContext.getContentResolver();
+        desoLogo = (ImageView) mStatusBarView.findViewById(R.id.deso_logo);
+        if (desoLogo != null) {
+            desoLogo.setVisibility(show ? (mDesoLogo ? View.VISIBLE : View.GONE) : View.GONE);
+        }
+    }
+
 
     private void setControllerUsers() {
         if (mZenModeController != null) {

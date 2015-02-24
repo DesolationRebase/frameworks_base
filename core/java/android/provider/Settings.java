@@ -3251,6 +3251,12 @@ public final class Settings {
         public static final String STATUS_BAR_CUSTOM_HEADER_IMAGE = "status_bar_custom_header_image";
 
         /**
+         * Statusbar Desolation logo
+         * @hide
+         */
+        public static final String STATUS_BAR_DESO_LOGO = "status_bar_deso_logo";
+
+        /**
          * Settings to backup. This is here so that it's in the same place as the settings
          * keys and easy to update.
          *

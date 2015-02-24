@@ -45,8 +45,7 @@
         android:layout_height="match_parent"
         android:paddingStart="6dp"
         android:paddingEnd="8dp"
-        android:orientation="horizontal"
-        >
+        android:orientation="horizontal">
 
         <com.android.systemui.statusbar.AlphaOptimizedFrameLayout
             android:id="@+id/notification_icon_area"
@@ -62,6 +61,20 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 >
+
+                <ImageView
+                    android:id="@+id/deso_logo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="20dp"
+                    android:maxHeight="20dp"
+		    android:paddingRight="4dip"
+                    android:paddingTop="4dip"
+                    android:src="@drawable/ic_status_bar_deso_logo"
+                    android:scaleType="fitCenter"
+                    android:adjustViewBounds="true"
+                    android:visibility="gone" />
+
                 <com.android.keyguard.CarrierText
                     android:id="@+id/status_carrier_text"
                     android:layout_width="wrap_content"
@@ -78,14 +91,15 @@
                     android:layout_width="@dimen/status_bar_icon_size"
                     android:layout_height="match_parent"
                     android:src="@drawable/stat_notify_more"
-                    android:visibility="gone"
-                    />
+                    android:visibility="gone" />
+
                 <com.android.systemui.statusbar.phone.IconMerger android:id="@+id/notificationIcons"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:layout_alignParentStart="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"/>
+
             </com.android.keyguard.AlphaOptimizedLinearLayout>
 
         </com.android.systemui.statusbar.AlphaOptimizedFrameLayout>
@@ -93,8 +107,7 @@
         <com.android.keyguard.AlphaOptimizedLinearLayout android:id="@+id/system_icon_area"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:orientation="horizontal"
-            >
+            android:orientation="horizontal">
 
             <include layout="@layout/system_icons" />
 
@@ -105,8 +118,7 @@
                 android:layout_height="match_parent"
                 android:singleLine="true"
                 android:paddingStart="7dp"
-                android:gravity="center_vertical|start"
-                />
+                android:gravity="center_vertical|start" />
         </com.android.keyguard.AlphaOptimizedLinearLayout>
     </LinearLayout>
 
