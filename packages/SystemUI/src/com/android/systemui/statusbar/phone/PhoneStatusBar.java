@@ -43,6 +43,7 @@ import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.PorterDuff;
+import android.graphics.PorterDuff.Mode;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
@@ -333,6 +334,7 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
     // Desolation logo
     private boolean mDesoLogo;
     private ImageView desoLogo;
+    private int mDesoLogoColor;
 
     boolean mExpandedVisible;
 
@@ -380,6 +382,8 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.STATUS_BAR_DESO_LOGO),
                     false, this, UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.STATUS_BAR_DESO_LOGO_COLOR), false, this, UserHandle.USER_ALL);
             update();
         }
 
@@ -400,9 +404,11 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
 
         public void update() {
             ContentResolver resolver = mContext.getContentResolver();
+            mDesoLogoColor = Settings.System.getIntForUser(resolver,
+                    Settings.System.STATUS_BAR_DESO_LOGO_COLOR, 0xFFFFFFFF, mCurrentUserId);
             mDesoLogo = Settings.System.getIntForUser(resolver,
                     Settings.System.STATUS_BAR_DESO_LOGO, 0, mCurrentUserId) == 1;
-            showDesoLogo(mDesoLogo);
+            showDesoLogo(mDesoLogo, mDesoLogoColor);
         }
     }
 
@@ -3111,10 +3117,11 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
         mAssistManager.onUserSwitched(newUserId);
     }
 
-    public void showDesoLogo(boolean show) {
+    public void showDesoLogo(boolean show, int color) {
         if (mStatusBarView == null) return;
         ContentResolver resolver = mContext.getContentResolver();
         desoLogo = (ImageView) mStatusBarView.findViewById(R.id.deso_logo);
+        desoLogo.setColorFilter(color, Mode.SRC_IN);
         if (desoLogo != null) {
             desoLogo.setVisibility(show ? (mDesoLogo ? View.VISIBLE : View.GONE) : View.GONE);
         }
