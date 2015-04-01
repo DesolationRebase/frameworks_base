@@ -6240,6 +6240,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     } else {
                         mBootMsgDialog.setTitle(R.string.android_start_title);
                     }
+                    mBootMsgDialog.setIcon(com.android.internal.R.drawable.boot_logo);
                     mBootMsgDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
                     mBootMsgDialog.setIndeterminate(true);
                     mBootMsgDialog.getWindow().setType(
