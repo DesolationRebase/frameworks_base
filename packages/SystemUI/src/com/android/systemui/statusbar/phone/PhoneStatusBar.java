@@ -334,8 +334,6 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
     private boolean mDesoLogo;
     private ImageView desoLogo;
 
-    // position
-    int[] mPositionTmp = new int[2];
     boolean mExpandedVisible;
 
     private int mNavigationBarWindowState = WINDOW_STATE_SHOWING;
@@ -663,6 +661,8 @@ public class PhoneStatusBar extends BaseStatusBar implements DemoMode,
                 R.bool.config_status_bar_scrim_behind_use_src);
 
         super.start(); // calls createAndAddWindows()
+
+        new SettingsObserver(new Handler()).observe();
 
         mMediaSessionManager
                 = (MediaSessionManager) mContext.getSystemService(Context.MEDIA_SESSION_SERVICE);
