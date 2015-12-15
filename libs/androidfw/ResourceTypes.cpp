@@ -57,7 +57,7 @@ namespace android {
 #endif
 
 #define IDMAP_MAGIC             0x504D4449
-#define IDMAP_CURRENT_VERSION   0x00000001
+#define IDMAP_CURRENT_VERSION   0x00000002
 
 #define APP_PACKAGE_ID      0x7f
 #define SYS_PACKAGE_ID      0x01
@@ -3627,9 +3627,16 @@ status_t ResTable::add(ResTable* src)
 }
 
 status_t ResTable::addEmpty(const int32_t cookie) {
+    int32_t realCookie = cookie < 0 ? nextAvailableCookie() : cookie;
+
+    if (cookieToHeaderIndex(realCookie) >= 0) {
+        ALOGE("cookie %d already added to table", realCookie);
+        return BAD_VALUE;
+    }
+
     Header* header = new Header(this);
     header->index = mHeaders.size();
-    header->cookie = cookie;
+    header->cookie = realCookie;
     header->values.setToEmpty();
     header->ownedData = calloc(1, sizeof(ResTable_header));
 
@@ -3644,7 +3651,7 @@ status_t ResTable::addEmpty(const int32_t cookie) {
 }
 
 status_t ResTable::addInternal(const void* data, size_t dataSize, const void* idmapData, size_t idmapDataSize,
-        const int32_t cookie, bool copyData)
+        int32_t cookie, bool copyData)
 {
     if (!data) {
         return NO_ERROR;
@@ -3654,6 +3661,15 @@ status_t ResTable::addInternal(const void* data, size_t dataSize, const void* id
         ALOGE("Invalid data. Size(%d) is smaller than a ResTable_header(%d).",
                 (int) dataSize, (int) sizeof(ResTable_header));
         return UNKNOWN_ERROR;
+    }
+
+    if (cookie < 0) {
+        cookie = nextAvailableCookie();
+    }
+
+    if (cookieToHeaderIndex(cookie) >= 0) {
+        ALOGE("cookie %d already added to table", cookie);
+        return BAD_VALUE;
     }
 
     Header* header = new Header(this);
@@ -3773,6 +3789,90 @@ status_t ResTable::addInternal(const void* data, size_t dataSize, const void* id
     if (kDebugTableNoisy) {
         ALOGV("Returning from add with mError=%d\n", mError);
     }
+    return mError;
+}
+
+int32_t ResTable::nextAvailableCookie() const
+{
+    int32_t candidate = 1;
+    const size_t N = mHeaders.size();
+    for (size_t i = 0; i < N; i++) {
+        const int32_t cookie = mHeaders[i]->cookie;
+        if (cookie >= candidate) {
+            candidate = cookie + 1;
+        }
+    }
+    return candidate;
+}
+
+status_t ResTable::remove(const int32_t cookie)
+{
+    if (mError != NO_ERROR) {
+        return mError;
+    }
+
+    AutoMutex lock(mLock);
+
+    // remove references to header
+    const ssize_t index = cookieToHeaderIndex(cookie);
+    if (index < 0) {
+        return BAD_VALUE;
+    }
+    Header* header = mHeaders.itemAt(index);
+    if (header == NULL) {
+        return BAD_VALUE;
+    }
+    if (mHeaders.removeAt(index) < 0) {
+        return BAD_VALUE;
+    }
+    if (header->owner == this && header->ownedData) {
+        free(header->ownedData);
+    }
+
+    // fix Header::index invariant (if we've removed a header in the middle of the vector)
+    const size_t N = mHeaders.size();
+    for (size_t i = 0; i < N; i++) {
+        mHeaders[i]->index = i;
+    }
+
+    // remove references to packages and types associated with header
+    const size_t Ng = mPackageGroups.size();
+    for (size_t i = 0; i < Ng; i++) {
+        PackageGroup* pg = mPackageGroups.itemAt(i);
+        const size_t N = pg->packages.size();
+        for (size_t j = 0; j < N; j++) {
+            Package *p = pg->packages.itemAt(j);
+            if (p->header == header) {
+                pg->packages.removeAt(j);
+                delete p;
+                break;
+            }
+        }
+
+        const size_t Nt = pg->types.size();
+        for (size_t j = 0; j < Nt; j++) {
+            TypeList& tl = pg->types.editItemAt(j);
+            const size_t N = tl.size();
+            for (size_t k = 0; k < N; k++) {
+                const Type* const typeSpec = tl[k];
+                if (typeSpec->header == header) {
+                    tl.removeAt(k);
+                    delete typeSpec;
+                    break;
+                }
+            }
+        }
+
+        if (pg->packages.size() == 0) {
+            mPackageMap[pg->id] = 0;
+            mPackageGroups.removeAt(i);
+            delete pg;
+            break;
+        }
+    }
+
+    delete header;
+
     return mError;
 }
 
@@ -5660,6 +5760,21 @@ const DynamicRefTable* ResTable::getDynamicRefTableForCookie(int32_t cookie) con
     return NULL;
 }
 
+ssize_t ResTable::cookieToHeaderIndex(int32_t cookie) const
+{
+    if (cookie < 0) {
+        return -1;
+    }
+
+    const size_t N = mHeaders.size();
+    for (size_t i = 0; i < N; i++) {
+        if (mHeaders[i]->cookie == cookie) {
+            return mHeaders[i]->index;
+        }
+    }
+    return -1;
+}
+
 void ResTable::getConfigurations(Vector<ResTable_config>* configs, bool ignoreMipmap) const
 {
     const size_t packageCount = mPackageGroups.size();
@@ -6377,6 +6492,7 @@ status_t ResTable::createIdmap(const ResTable& overlay,
         return UNKNOWN_ERROR;
     }
 
+    bool isDangerous = false;
     KeyedVector<uint8_t, IdmapTypeMap> map;
 
     // overlaid packages are assumed to contain only one package group
@@ -6451,6 +6567,13 @@ status_t ResTable::createIdmap(const ResTable& overlay,
                 }
             }
             typeMap.entryMap.add(Res_GETENTRY(overlayResID));
+
+            Entry entry;
+            if (getEntry(pg, typeIndex, entryIndex, NULL, &entry)) {
+                return UNKNOWN_ERROR;
+            }
+            isDangerous = isDangerous ||
+                ((dtohs(entry.entry->flags) & ResTable_entry::FLAG_OVERLAY) == 0);
         }
 
         if (!typeMap.entryMap.isEmpty()) {
@@ -6473,6 +6596,7 @@ status_t ResTable::createIdmap(const ResTable& overlay,
     uint32_t* data = (uint32_t*)*outData;
     *data++ = htodl(IDMAP_MAGIC);
     *data++ = htodl(IDMAP_CURRENT_VERSION);
+    *data++ = htodl(isDangerous ? 1 : 0);
     *data++ = htodl(targetCrc);
     *data++ = htodl(overlayCrc);
     const char* paths[] = { targetPath, overlayPath };
@@ -6513,7 +6637,7 @@ status_t ResTable::createIdmap(const ResTable& overlay,
 }
 
 bool ResTable::getIdmapInfo(const void* idmap, size_t sizeBytes,
-                            uint32_t* pVersion,
+                            uint32_t* pVersion, uint32_t* pDangerous,
                             uint32_t* pTargetCrc, uint32_t* pOverlayCrc,
                             String8* pTargetPath, String8* pOverlayPath)
 {
@@ -6524,17 +6648,20 @@ bool ResTable::getIdmapInfo(const void* idmap, size_t sizeBytes,
     if (pVersion) {
         *pVersion = dtohl(map[1]);
     }
+    if (pDangerous) {
+        *pDangerous = dtohl(map[2]);
+    }
     if (pTargetCrc) {
-        *pTargetCrc = dtohl(map[2]);
+        *pTargetCrc = dtohl(map[3]);
     }
     if (pOverlayCrc) {
-        *pOverlayCrc = dtohl(map[3]);
+        *pOverlayCrc = dtohl(map[4]);
     }
     if (pTargetPath) {
-        pTargetPath->setTo(reinterpret_cast<const char*>(map + 4));
+        pTargetPath->setTo(reinterpret_cast<const char*>(map + 5));
     }
     if (pOverlayPath) {
-        pOverlayPath->setTo(reinterpret_cast<const char*>(map + 4 + 256 / sizeof(uint32_t)));
+        pOverlayPath->setTo(reinterpret_cast<const char*>(map + 5 + 256 / sizeof(uint32_t)));
     }
     return true;
 }
@@ -6859,6 +6986,9 @@ void ResTable::print(bool inclValues) const
 
                     if ((dtohs(ent->flags)&ResTable_entry::FLAG_PUBLIC) != 0) {
                         printf(" (PUBLIC)");
+                    }
+                    if ((dtohs(ent->flags)&ResTable_entry::FLAG_OVERLAY) != 0) {
+                        printf(" (OVERLAY)");
                     }
                     printf("\n");
 
