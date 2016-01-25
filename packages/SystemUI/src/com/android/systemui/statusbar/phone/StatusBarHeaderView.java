@@ -18,15 +18,23 @@ package com.android.systemui.statusbar.phone;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.database.ContentObserver;
 import android.graphics.Outline;
 import android.graphics.Rect;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.RippleDrawable;
+import android.graphics.drawable.TransitionDrawable;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.UserHandle;
+import android.provider.Settings;
 import android.util.AttributeSet;
 import android.util.MathUtils;
 import android.util.TypedValue;
@@ -51,8 +59,11 @@ import com.android.systemui.statusbar.policy.NetworkControllerImpl.EmergencyList
 import com.android.systemui.statusbar.policy.NextAlarmController;
 import com.android.systemui.statusbar.policy.UserInfoController;
 import com.android.systemui.tuner.TunerService;
+import com.android.systemui.utils.ContextualHeaderProvider;
 
+import java.io.InputStream;
 import java.text.NumberFormat;
+import java.util.Calendar;
 
 /**
  * The view to manage the header area in the expanded status bar.
@@ -128,6 +139,10 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
     private boolean mShowingDetail;
     private boolean mDetailTransitioning;
 
+    private ImageView mBackgroundImage;
+    private Drawable mCurrentBackground;
+    private float mLastHeight;
+
     public StatusBarHeaderView(Context context, AttributeSet attrs) {
         super(context, attrs);
     }
@@ -160,6 +175,7 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
         mAlarmStatus.setOnClickListener(this);
         mSignalCluster = findViewById(R.id.signal_cluster);
         mSystemIcons = (LinearLayout) findViewById(R.id.system_icons);
+        mBackgroundImage = (ImageView) findViewById(R.id.background_image);
         loadDimens();
         updateVisibilities();
         updateClockScale();
@@ -185,6 +201,12 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
             }
         });
         requestCaptureValues();
+
+        Handler mHandler = new Handler();
+        SettingsObserver mSettingsObserver = new SettingsObserver(mHandler);
+        mSettingsObserver.observe();
+        updateContextualHeader();
+        createContextualHeaderAlarm();
 
         // RenderThread is doing more harm than good when touching the header (to expand quick
         // settings), so disable it for this view
@@ -472,14 +494,30 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
         }
         mCurrentT = t;
         float height = mCollapsedHeight + t * (mExpandedHeight - mCollapsedHeight);
-        if (height < mCollapsedHeight) {
-            height = mCollapsedHeight;
+
+
+        if (height != mLastHeight)
+        {
+            if (height < mCollapsedHeight)
+            {
+                height = mCollapsedHeight;
+            }
+            if (height > mExpandedHeight)
+            {
+                height = mExpandedHeight;
+            }
+            final float heightFinal = height;
+            setClipping(heightFinal);
+            post(new Runnable() {
+                public void run() {
+                    RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mBackgroundImage.getLayoutParams();
+                    params.height = (int)heightFinal;
+                    mBackgroundImage.setLayoutParams(params);
+                }
+            });
+            updateLayoutValues(t);
+            mLastHeight = heightFinal;
         }
-        if (height > mExpandedHeight) {
-            height = mExpandedHeight;
-        }
-        setClipping(height);
-        updateLayoutValues(t);
     }
 
     private void updateLayoutValues(float t) {
@@ -829,4 +867,71 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
                     .start();
         }
     };
+
+    private class SettingsObserver extends ContentObserver {
+        SettingsObserver(Handler handler) {
+            super(handler);
+        }
+
+        void observe() {
+            mContext.getContentResolver().registerContentObserver(Settings.System.getUriFor(Settings.System.STATUS_BAR_CUSTOM_HEADER), false, this, UserHandle.USER_ALL);
+            mContext.getContentResolver().registerContentObserver(Settings.System.getUriFor(Settings.System.STATUS_BAR_CUSTOM_HEADER_IMAGE), false, this, UserHandle.USER_ALL);
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            updateContextualHeader();
+        }
+    }
+
+   private void updateContextualHeader() {
+       final boolean customHeader = Settings.System.getIntForUser(mContext.getContentResolver(), Settings.System.STATUS_BAR_CUSTOM_HEADER, 0, UserHandle.USER_CURRENT) == 1;
+       final String customHeaderImage = Settings.System.getStringForUser(mContext.getContentResolver(), Settings.System.STATUS_BAR_CUSTOM_HEADER_IMAGE, UserHandle.USER_CURRENT);
+       if(customHeader && customHeaderImage != null && !(new String("").equals(customHeaderImage))) {
+         try {
+             InputStream input = mContext.getContentResolver().openInputStream(Uri.parse(customHeaderImage));
+             mBackgroundImage.setVisibility(View.VISIBLE);
+	     mBackgroundImage.setImageDrawable(Drawable.createFromStream(input, customHeaderImage));
+         } catch(Exception x) {
+             x.printStackTrace();
+             mBackgroundImage.setVisibility(View.VISIBLE);
+     	     mBackgroundImage.setImageDrawable(getContextualDrawable());
+         }
+       } else {
+	 if(customHeader) {
+           mBackgroundImage.setVisibility(View.VISIBLE);
+	   mBackgroundImage.setImageDrawable(getContextualDrawable());
+         } else {
+           mBackgroundImage.setVisibility(View.GONE);
+         }
+       }
+   }
+
+    private Drawable getContextualDrawable() {
+        return ContextualHeaderProvider.getHeader(mContext);
+    }
+
+    private static final String STATUS_BAR_HEADER_UPDATE_ACTION = "com.android.systemui.desolationrom.STATUS_BAR_HEADER_UPDATE";
+
+    private void createContextualHeaderAlarm() {
+	IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        filter.addAction(STATUS_BAR_HEADER_UPDATE_ACTION);
+        mContext.registerReceiver(new AlarmReceiver(), filter);
+
+        long nextHourIn = 3600000 - Calendar.getInstance().get(Calendar.MILLISECOND) % 3600000;
+
+        Intent intent = new Intent(STATUS_BAR_HEADER_UPDATE_ACTION);
+
+        PendingIntent sender = PendingIntent.getBroadcast(mContext, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        AlarmManager am = (AlarmManager) mContext.getSystemService(mContext.ALARM_SERVICE);
+
+        am.setInexactRepeating(AlarmManager.RTC, Calendar.getInstance().get(Calendar.MILLISECOND) + nextHourIn, AlarmManager.INTERVAL_HOUR, sender);
+    }
+
+    private class AlarmReceiver extends BroadcastReceiver{
+        public void onReceive(Context context, Intent intent) {
+            updateContextualHeader();
+        }
+    }
 }
