@@ -3275,6 +3275,11 @@ public final class Settings {
         public static final String FIRST_BOOT_NOTIFY = "first_boot_notify" ;
 
         /**
+         * Boolean value whether to show the charging speed on the lockscreen
+         * @hide
+         */
+        public static final String SHOW_CHARGING_MAH = "show_charging_mah";
+        /**
          * Settings to backup. This is here so that it's in the same place as the settings
          * keys and easy to update.
          *
