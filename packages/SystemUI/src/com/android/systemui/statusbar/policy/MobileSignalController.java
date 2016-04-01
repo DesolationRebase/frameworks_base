@@ -18,8 +18,12 @@ package com.android.systemui.statusbar.policy;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.database.ContentObserver;
 import android.net.NetworkCapabilities;
+import android.os.Handler;
 import android.os.Looper;
+import android.os.UserHandle;
+import android.provider.Settings;
 import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
@@ -63,6 +67,8 @@ public class MobileSignalController extends SignalController<
     private boolean mLastShowPlmn;
     private String mLastPlmn;
 
+    private String customCarrier = null;
+
     // Since some pieces of the phone state are interdependent we store it locally,
     // this could potentially become part of MobileState for simplification/complication
     // of code.
@@ -78,6 +84,8 @@ public class MobileSignalController extends SignalController<
     private final int STATUS_BAR_STYLE_DEFAULT_DATA = 2;
     private final int STATUS_BAR_STYLE_DATA_VOICE = 3;
     private int mStyle = STATUS_BAR_STYLE_ANDROID_DEFAULT;
+
+    private Context nContext = null;
 
     // TODO: Reduce number of vars passed in, if we have the NetworkController, probably don't
     // need listener lists anymore.
@@ -115,7 +123,31 @@ public class MobileSignalController extends SignalController<
         mLastState.enabled = mCurrentState.enabled = hasMobileData;
         mLastState.iconGroup = mCurrentState.iconGroup = mDefaultIcons;
         // Get initial data sim state.
+        nContext = context;
+
+        Handler mHandler = new Handler();
+        SettingsObserver mSettingsObserver = new SettingsObserver(mHandler);
+        mSettingsObserver.observe();
+
+        customCarrier = Settings.System.getStringForUser(nContext.getContentResolver(), Settings.System.CUSTOM_QS_CARRIER_NAME, UserHandle.USER_CURRENT);
+
         updateDataSim();
+    }
+
+    private class SettingsObserver extends ContentObserver {
+        SettingsObserver(Handler handler) {
+            super(handler);
+        }
+
+        void observe() {
+            nContext.getContentResolver().registerContentObserver(Settings.System.getUriFor(Settings.System.CUSTOM_QS_CARRIER_NAME), false, this, UserHandle.USER_ALL);
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            customCarrier = Settings.System.getString(nContext.getContentResolver(), Settings.System.CUSTOM_QS_CARRIER_NAME);
+            notifyListenersIfNecessary();
+        }
     }
 
     public void setConfiguration(Config config) {
@@ -247,7 +279,12 @@ public class MobileSignalController extends SignalController<
             qsTypeIcon = showDataIcon ? icons.mQsDataType : 0;
             qsIcon = new IconState(mCurrentState.enabled
                     && !mCurrentState.isEmergency, getQsCurrentIconId(), contentDescription);
-            description = mCurrentState.isEmergency ? null : mCurrentState.networkName;
+            if(customCarrier != null && !customCarrier.isEmpty()) {
+                description = customCarrier;
+            }
+            else {
+                description = mCurrentState.isEmergency ? null : mCurrentState.networkName;
+            }
         }
         boolean activityIn = mCurrentState.dataConnected
                         && !mCurrentState.carrierNetworkChangeMode
