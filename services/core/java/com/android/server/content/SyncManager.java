@@ -2604,15 +2604,17 @@ public class SyncManager {
                         }
                         continue;
                     }
-
                     String packageName = getPackageName(op.target);
                     ApplicationInfo ai = null;
                     if (packageName != null) {
                         try {
                             ai = mContext.getPackageManager().getApplicationInfo(packageName,
                                     PackageManager.GET_UNINSTALLED_PACKAGES
-                                    | PackageManager.GET_DISABLED_COMPONENTS);
+                                            | PackageManager.GET_DISABLED_COMPONENTS);
                         } catch (NameNotFoundException e) {
+                            operationIterator.remove();
+                            mSyncStorageEngine.deleteFromPending(op.pendingOperation);
+                            continue;
                         }
                     }
                     // If app is considered idle, then skip for now and backoff
@@ -2627,7 +2629,24 @@ public class SyncManager {
                     } else {
                         op.appIdle = false;
                     }
-
+                    if (!isOperationValidLocked(op)) {
+                        operationIterator.remove();
+                        mSyncStorageEngine.deleteFromPending(op.pendingOperation);
+                        continue;
+                    }
+                    // If the next run time is in the future, even given the flexible scheduling,
+                    // return the time.
+                    if (op.effectiveRunTime - op.flexTime > now) {
+                        if (nextReadyToRunTime > op.effectiveRunTime) {
+                            nextReadyToRunTime = op.effectiveRunTime;
+                        }
+                        if (isLoggable) {
+                            Log.v(TAG, "    Not running sync operation: Sync too far in future."
+                                    + "effective: " + op.effectiveRunTime + " flex: " + op.flexTime
+                                    + " now: " + now);
+                        }
+                        continue;
+                    }
                     // Add this sync to be run.
                     operations.add(op);
                 }
