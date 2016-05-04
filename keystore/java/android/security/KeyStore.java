@@ -388,7 +388,7 @@ public class KeyStore {
     public boolean clearUid(int uid) {
         try {
             return mBinder.clear_uid(uid) == NO_ERROR;
-        } catch (RemoteException e) {
+        } catch (Exception e) {
             Log.w(TAG, "Cannot connect to keystore", e);
             return false;
         }
