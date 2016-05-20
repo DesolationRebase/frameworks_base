@@ -68,7 +68,7 @@ import java.util.Calendar;
 /**
  * The view to manage the header area in the expanded status bar.
  */
-public class StatusBarHeaderView extends RelativeLayout implements View.OnClickListener,
+public class StatusBarHeaderView extends RelativeLayout implements View.OnClickListener,View.OnLongClickListener,
         BatteryController.BatteryStateChangeCallback, NextAlarmController.NextAlarmChangeCallback,
         EmergencyListener {
 
@@ -164,6 +164,7 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
         mSettingsButton = (SettingsButton) findViewById(R.id.settings_button);
         mSettingsContainer = findViewById(R.id.settings_button_container);
         mSettingsButton.setOnClickListener(this);
+        mSettingsButton.setOnLongClickListener(this);
         mQsDetailHeader = findViewById(R.id.qs_detail_header);
         mQsDetailHeader.setAlpha(0);
         mQsDetailHeaderTitle = (TextView) mQsDetailHeader.findViewById(android.R.id.title);
@@ -569,6 +570,21 @@ public class StatusBarHeaderView extends RelativeLayout implements View.OnClickL
                 mActivityStarter.startPendingIntentDismissingKeyguard(showIntent);
             }
         }
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+		if (v == mSettingsButton){
+			startSettingsLongClickActivity();
+		}
+		return false;
+    }
+
+    private void startSettingsLongClickActivity() {
+	    Intent intent = new Intent(Intent.ACTION_MAIN);
+ 	    intent.setClassName("com.desolationrom.settings",
+            "com.desolationrom.settings.MainActivity");
+        mActivityStarter.startActivity(intent, true);
     }
 
     private void startSettingsActivity() {
