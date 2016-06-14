@@ -95,8 +95,31 @@ class Rules {
         }
 
         // The target package is not installed
+        //
+        // @nicholaschum: Add cases where the target was removed during an app
+        // update, and thus should only be in state 2 if and only if it was a
+        // full uninstall.
+        // 
+        // If the user installs a big app like Facebook or Google+, we should
+        // take account for the install time, so 10,000ms == 10secs.
         if (getPackage(overlayPackage.overlayTarget, userId) == null) {
-            return STATE_NOT_APPROVED_MISSING_TARGET;
+            try {
+                Thread.sleep(10000);
+                if (getPackage(overlayPackage.overlayTarget, userId) == null) {
+                    return STATE_NOT_APPROVED_MISSING_TARGET;
+                } else {
+                    switch (overlay.state) {
+                        case STATE_APPROVED_DISABLED:
+                            return STATE_APPROVED_DISABLED;
+                        case STATE_APPROVED_ENABLED:
+                            return STATE_APPROVED_ENABLED;
+                        default:
+                            return STATE_APPROVED_DISABLED;
+                    }        
+                }
+            } catch (InterruptedException ie) {
+                return STATE_NOT_APPROVED_MISSING_TARGET;
+            }
         }
 
         // No idmap has been created. Perhaps there were no matching resources
@@ -105,13 +128,13 @@ class Rules {
             return STATE_NOT_APPROVED_NO_IDMAP;
         }
 
+        // System Overlays, also known as RRO overlay files, work the same
+        // as OMS, but with enable/disable limitations. A system overlay resides
+        // in the directory "/vendor/overlay" depending on your device. Disable
+        // this as this is a security vulnerability and a memory-specific
+        // partition.
         if (isSystem(overlayPackage)) {
-            return STATE_APPROVED_ALWAYS_ENABLED;
-        }
-
-        // If the target and overlay have the same author, we approve it.
-        if (isSignatureMatching(overlayPackage)) {
-            return STATE_APPROVED_DISABLED;
+            return STATE_NOT_APPROVED_COMPONENT_DISABLED;
         }
 
         // If the overlay only modifies resources explicitly granted by the
@@ -120,9 +143,25 @@ class Rules {
             return STATE_APPROVED_DISABLED;
         }
 
-        // Technically, we could approve and use the overlay, but the target
-        // hasn't granted every resource it touches. Let's not approve it.
-        return STATE_NOT_APPROVED_DANGEROUS_OVERLAY;
+        // At this point, we ran through all the above tests and will go to the
+        // default return value, however, instead of just returning a default
+        // STATE_APPROVED_DISABLED value, we should check whether it is enabled
+        // in overlays.list instead.
+
+        try {
+            switch (overlay.state) {
+                case STATE_APPROVED_DISABLED:
+                    return STATE_APPROVED_DISABLED;
+                case STATE_APPROVED_ENABLED:
+                    return STATE_APPROVED_ENABLED;
+                default:
+                    return STATE_APPROVED_DISABLED;
+            }        
+        } catch (Exception e) {
+            // At this point, we can safely assume that overlay is null and we
+            // should just return STATE_APPROVED_DISABLED, like default.
+            return STATE_APPROVED_DISABLED;
+        }
     }
 
     /**
@@ -193,22 +232,6 @@ class Rules {
             // Intentionally left blank
         }
         return null;
-    }
-
-    /**
-     * Check if the signature of the overlay package matches the signature of the target package.
-     *
-     * @param overlay
-     * @return true if the signature match the target package
-     */
-    private boolean isSignatureMatching(PackageInfo overlay) {
-        try {
-            return mPm.checkSignatures(overlay.overlayTarget,
-                    overlay.packageName) == SIGNATURE_MATCH;
-        } catch (RemoteException e) {
-            // Intentionally left blank
-        }
-        return false;
     }
 
     /**
