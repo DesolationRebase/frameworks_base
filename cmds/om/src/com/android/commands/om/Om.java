@@ -311,13 +311,13 @@ public final class Om {
 
             for (Entry<String, List<OverlayInfo>> targetEntry : targetsAndOverlays.entrySet()) {
                 for (OverlayInfo oi : targetEntry.getValue()) {
-                    boolean worked = mOm.setEnabled(oi.packageName, false, userId, false);
+                    boolean worked = mOm.setEnabled(oi.packageName, false, userId, true);
                     if(!worked) {
                         System.err.println("Failed to disable " + oi.packageName);
                     }
                 }
             }
-            System.out.println();
+            mOm.refresh(userId);
         } catch (RemoteException e) {
             System.err.println(e.toString());
             System.err.println(OM_NOT_RUNNING_ERR);
