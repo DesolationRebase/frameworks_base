@@ -458,8 +458,8 @@ public class OverlayManagerService extends SystemService {
     private final class OverlayChangeCallback implements StateListener {
 
         @Override
-        public void onOverlayAdded(OverlayInfo overlay) {
-            if (overlay.isEnabled()) {
+        public void onOverlayAdded(OverlayInfo overlay, boolean shouldWait) {
+            if (overlay.isEnabled() && !shouldWait) {
                 updateAssets(overlay.userId, overlay.targetPackageName);
             }
             persistState();
@@ -467,8 +467,8 @@ public class OverlayManagerService extends SystemService {
         }
 
         @Override
-        public void onOverlayRemoved(OverlayInfo overlay) {
-            if (overlay.isEnabled()) {
+        public void onOverlayRemoved(OverlayInfo overlay, boolean shouldWait) {
+            if (overlay.isEnabled() && !shouldWait) {
                 updateAssets(overlay.userId, overlay.targetPackageName);
             }
             persistState();
@@ -476,8 +476,8 @@ public class OverlayManagerService extends SystemService {
         }
 
         @Override
-        public void onOverlayChanged(OverlayInfo overlay, OverlayInfo oldOverlay) {
-            if (overlay.isEnabled() != oldOverlay.isEnabled()) {
+        public void onOverlayChanged(OverlayInfo overlay, OverlayInfo oldOverlay, boolean shouldWait) {
+            if (overlay.isEnabled() != oldOverlay.isEnabled() && !shouldWait) {
                 updateAssets(overlay.userId, overlay.targetPackageName);
             }
             persistState();
@@ -569,8 +569,13 @@ public class OverlayManagerService extends SystemService {
             return mState.getOverlayInfo(packageName, userId);
         }
 
-        @Override
         public boolean setEnabled(String packageName, boolean enable, int userId)
+                throws RemoteException {
+            return setEnabled(packageName, enable, userId, false);
+        }
+
+        @Override
+        public boolean setEnabled(String packageName, boolean enable, int userId, boolean shouldWait)
                 throws RemoteException {
             enforceChangeConfigurationPermission("setEnabled");
             OverlayInfo oi = mState.getOverlayInfo(packageName, userId);
@@ -586,7 +591,7 @@ public class OverlayManagerService extends SystemService {
             // update OverlayInfo
             final long ident = Binder.clearCallingIdentity();
             try {
-                mState.insertOverlay(new OverlayInfo(oi, state, userId));
+                mState.insertOverlay(new OverlayInfo(oi, state, userId), shouldWait);
             } finally {
                 Binder.restoreCallingIdentity(ident);
             }
@@ -635,6 +640,10 @@ public class OverlayManagerService extends SystemService {
             } finally {
                 Binder.restoreCallingIdentity(ident);
             }
+        }
+
+        public void refresh(int uid) {
+            updateAssets(uid, mState.getAllTargets(uid));
         }
     };
 

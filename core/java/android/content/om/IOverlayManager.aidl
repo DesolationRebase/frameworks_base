@@ -70,10 +70,11 @@ interface IOverlayManager {
      * @param packageName the name of the overlay package
      * @param enable true to enable the overlay, false to disable it
      * @param userId the user to get OverlayInfo for
+     * @param shouldWait true to wait to broadcast reloading resources until commit() is called
      * @return true if the new enable state is according to the given enable
      *         parameter otherwise false
      */
-    boolean setEnabled(in String packageName, in boolean enable, in int userId);
+    boolean setEnabled(in String packageName, in boolean enable, in int userId, in boolean shouldWait);
 
     /**
      * Change the priority of the given overlay to be just higher than the
@@ -104,4 +105,11 @@ interface IOverlayManager {
      * @return true if the priority change was successful
      */
     boolean setLowestPriority(in OverlayInfo overlay);
+
+    /**
+     * Refresh assets
+     * @param uid the user to refresh assets for
+     */
+    void refresh(in int uid);
+
 }

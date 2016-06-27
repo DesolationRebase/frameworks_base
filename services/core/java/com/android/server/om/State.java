@@ -115,6 +115,10 @@ final class State {
      *             added
      */
     void insertOverlay(final OverlayInfo overlay) {
+        insertOverlay(overlay, false);
+    }
+
+    void insertOverlay(final OverlayInfo overlay, boolean shouldWait) {
         final int userId = overlay.userId;
         OverlayInfo oldOverlay = null;
         synchronized (mLock) {
@@ -131,9 +135,9 @@ final class State {
             }
         }
         if (oldOverlay == null) {
-            notifyOverlayAdded(overlay);
+            notifyOverlayAdded(overlay, shouldWait);
         } else {
-            notifyOverlayChange(overlay, oldOverlay, userId);
+            notifyOverlayChange(overlay, oldOverlay, userId, shouldWait);
         }
     }
 
@@ -248,6 +252,10 @@ final class State {
      * @return true if a removal was made, false if no OverlayInfo was found to be removed
      */
     boolean removeOverlay(final String packageName, int userId) {
+        return removeOverlay(packageName, userId, false);
+    }
+
+    boolean removeOverlay(final String packageName, int userId, boolean shouldWait) {
         OverlayInfo overlay;
         synchronized (mLock) {
             overlay = getOverlayInfo(packageName, userId);
@@ -260,7 +268,7 @@ final class State {
                 map.remove(overlay.targetPackageName);
             }
         }
-        notifyOverlayRemoved(overlay);
+        notifyOverlayRemoved(overlay, shouldWait);
         return true;
     }
 
@@ -284,30 +292,30 @@ final class State {
     }
 
     private void notifyOverlayChange(final OverlayInfo overlay, final OverlayInfo oldOverlay,
-            int userId) {
+            int userId, boolean shouldWait) {
         if (DEBUG) {
             assertNotLocked();
         }
         for (StateListener listener : mChangeListeners) {
-            listener.onOverlayChanged(overlay, oldOverlay);
+            listener.onOverlayChanged(overlay, oldOverlay, shouldWait);
         }
     }
 
-    private void notifyOverlayAdded(final OverlayInfo overlay) {
+    private void notifyOverlayAdded(final OverlayInfo overlay, boolean shouldWait) {
         if (DEBUG) {
             assertNotLocked();
         }
         for (StateListener listener : mChangeListeners) {
-            listener.onOverlayAdded(overlay);
+            listener.onOverlayAdded(overlay, shouldWait);
         }
     }
 
-    private void notifyOverlayRemoved(final OverlayInfo overlay) {
+    private void notifyOverlayRemoved(final OverlayInfo overlay, boolean shouldWait) {
         if (DEBUG) {
             assertNotLocked();
         }
         for (StateListener listener : mChangeListeners) {
-            listener.onOverlayRemoved(overlay);
+            listener.onOverlayRemoved(overlay, shouldWait);
         }
     }
 
@@ -325,9 +333,9 @@ final class State {
      * A listener interface that will get callbacks for all changes to the mOverlay packages.
      */
     interface StateListener {
-        void onOverlayAdded(OverlayInfo overlay);
-        void onOverlayRemoved(OverlayInfo overlay);
-        void onOverlayChanged(OverlayInfo overlay, OverlayInfo oldOverlay);
+        void onOverlayAdded(OverlayInfo overlay, boolean shouldWait);
+        void onOverlayRemoved(OverlayInfo overlay, boolean shouldWait);
+        void onOverlayChanged(OverlayInfo overlay, OverlayInfo oldOverlay, boolean shouldWait);
         void onOverlaysReordered(String targetPackage, int userId);
     }
 

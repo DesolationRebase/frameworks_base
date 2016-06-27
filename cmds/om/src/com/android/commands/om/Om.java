@@ -209,11 +209,32 @@ public final class Om {
         }
         try {
             String packageName = nextArg();
+            ArrayList<String> packages = new ArrayList<>();
+            int argc = 0;
             if (packageName == null) {
-                System.err.println("Error: no package specified");
+                System.err.println("Error: no packages specified");
                 return 1;
             }
-            return mOm.setEnabled(packageName, enable, userId) ? 0 : 1;
+            while(packageName != null) {
+                argc++;
+                packages.add(packageName);
+                packageName = nextArg();
+            }
+            if(argc > 1) {
+                for(String pkg : packages) {
+                    boolean ret = mOm.setEnabled(pkg, enable, userId, true);
+                    if(!ret) {
+                        System.err.println("Error: Failed to " + ((enable) ? "enable ":"disable ") + pkg);
+                    }
+                }
+                mOm.refresh(userId);
+                return 0;
+            } else if(argc == 1) {
+                return mOm.setEnabled(packages.get(0), enable, userId, false) ? 0:1;
+            } else {
+                System.err.println("Error: should never reach here");
+                return 1;
+            }
         } catch (RemoteException e) {
             System.err.println(e.toString());
             System.err.println(OM_NOT_RUNNING_ERR);
@@ -290,7 +311,7 @@ public final class Om {
 
             for (Entry<String, List<OverlayInfo>> targetEntry : targetsAndOverlays.entrySet()) {
                 for (OverlayInfo oi : targetEntry.getValue()) {
-                    boolean worked = mOm.setEnabled(oi.packageName, false, userId);
+                    boolean worked = mOm.setEnabled(oi.packageName, false, userId, false);
                     if(!worked) {
                         System.err.println("Failed to disable " + oi.packageName);
                     }
@@ -362,8 +383,8 @@ public final class Om {
 
     private static int showUsage() {
         System.err.println("usage: om list [--user USER_ID] [PACKAGE [PACKAGE [...]]]");
-        System.err.println("       om enable [--user USER_ID] PACKAGE");
-        System.err.println("       om disable [--user USER_ID] PACKAGE");
+        System.err.println("       om enable [--user USER_ID] PACKAGES");
+        System.err.println("       om disable [--user USER_ID] PACKAGES");
         System.err.println("       om disable-all [--user USER_ID]");
         System.err.println("       om set-priority [--user USER_ID] PACKAGE PARENT|lowest|highest");
         System.err.println("");
@@ -375,6 +396,7 @@ public final class Om {
         System.err.println("om enable PACKAGE: enable overlay package PACKAGE");
         System.err.println("");
         System.err.println("om disable PACKAGE: disable overlay package PACKAGE");
+        System.err.println("");
         System.err.println("om disable-all: disables all overlay packages");
         System.err.println("");
         System.err.println("om set-priority PACKAGE PARENT: change the priority of the overlay");
